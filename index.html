@@ -20,18 +20,15 @@
 <body>
   <h1>동물 이미지 퀴즈</h1>
 
-
   <div class="row">
     <span class="pill">점수: <span id="score">0</span></span>
     <span class="pill">문제: <span id="round">0</span>/<span id="total">5</span></span>
   </div>
 
-
   <div class="row">
     <button id="startBtn">퀴즈 시작</button>
     <button id="nextBtn" style="display:none">다음 문제</button>
   </div>
-
 
   <div id="quizArea" style="display:none">
     <div id="imageBox" class="row"></div>
@@ -39,9 +36,7 @@
     <div id="result" class="status"></div>
   </div>
 
-
   <hr class="row"/>
-
 
   <h2>소리 API 테스트</h2>
   <div class="row">
@@ -51,17 +46,14 @@
   <h3 id="sound"></h3>
   <div id="imgFromSound"></div>
 
-
   <script>
     const TOTAL_ROUNDS = 5;
     document.getElementById('total').textContent = TOTAL_ROUNDS;
 
-
-    let current = null;  // { img, options, answer }
+    let current = null;
     let canAnswer = false;
     let score = 0;
     let round = 0;
-
 
     const startBtn = document.getElementById('startBtn');
     const nextBtn = document.getElementById('nextBtn');
@@ -72,6 +64,7 @@
     const scoreEl = document.getElementById('score');
     const roundEl = document.getElementById('round');
 
+    const API_BASE = 'https://web-1-ombv.onrender.com';
 
     startBtn.addEventListener('click', () => {
       score = 0; round = 0;
@@ -83,10 +76,8 @@
       loadQuestion();
     });
 
-
     nextBtn.addEventListener('click', () => {
       if (round >= TOTAL_ROUNDS) {
-        // 게임 리셋
         startBtn.style.display = 'inline-block';
         nextBtn.style.display = 'none';
         quizArea.style.display = 'none';
@@ -98,9 +89,8 @@
       loadQuestion();
     });
 
-
     function loadQuestion() {
-      fetch('http://localhost:3001/quiz/image')
+      fetch(`${API_BASE}/quiz/image`)
         .then(r => r.json())
         .then(data => {
           current = data;
@@ -108,8 +98,6 @@
           roundEl.textContent = round;
           resultEl.textContent = '';
 
-
-          // 문제 화면 렌더
           imageBox.innerHTML = `<img src="${data.img}" alt="animal">`;
           optionsEl.innerHTML = '';
           data.options.forEach(opt => {
@@ -120,13 +108,7 @@
           });
           canAnswer = true;
 
-
-          // 마지막 문제 이후 버튼 문구 변경
-          if (round === TOTAL_ROUNDS) {
-            nextBtn.textContent = '결과 보기';
-          } else {
-            nextBtn.textContent = '다음 문제';
-          }
+          nextBtn.textContent = (round === TOTAL_ROUNDS) ? '결과 보기' : '다음 문제';
         })
         .catch(err => {
           console.error(err);
@@ -135,11 +117,9 @@
         });
     }
 
-
     function choose(opt) {
       if (!canAnswer) return;
       canAnswer = false;
-
 
       if (opt === current.answer) {
         score++;
@@ -151,8 +131,6 @@
         resultEl.className = 'status bad';
       }
 
-
-      // 모든 문제가 끝났을 때 결과 메시지
       if (round === TOTAL_ROUNDS) {
         setTimeout(() => {
           resultEl.textContent = `퀴즈 종료 — 점수: ${score}/${TOTAL_ROUNDS}`;
@@ -160,11 +138,9 @@
       }
     }
 
-
-    // 기존 소리 API 테스트(참고용)
     function getSound() {
       const name = document.getElementById('name').value;
-      fetch(`http://localhost:3001/sound/${name}`)
+      fetch(`${API_BASE}/sound/${name}`)
         .then((response) => response.json())
         .then((data) => {
           document.getElementById('sound').innerHTML = data.sound || '';
@@ -179,6 +155,4 @@
   </script>
 </body>
 </html>
-
-
 

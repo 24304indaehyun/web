@@ -5,6 +5,193 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>지도 기반 타이쿤 게임</title>
     <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f0f4f8;
+            color: #333;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+            padding-top: 20px;
+        }
+
+        .game-container {
+            display: flex;
+            width: 90%;
+            max-width: 1200px;
+            background-color: #fff;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .map-area {
+            flex: 2;
+            padding: 20px;
+            background-color: #e2e8f0;
+            position: relative;
+        }
+
+        .stats-area {
+            flex: 1;
+            padding: 20px;
+            background-color: #ffffff;
+            border-left: 1px solid #e0e0e0;
+            overflow-y: auto;
+            max-height: 90vh; /* 스크롤 가능하도록 높이 제한 */
+        }
+
+        h1, h2, h3, h4 {
+            color: #2c3e50;
+        }
+
+        .stat-card {
+            background-color: #f7f9fb;
+            border: 1px solid #e0e7ee;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+
+        .resource-list {
+            list-style: none;
+            padding: 0;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+
+        .resource-list li {
+            background-color: #fff;
+            padding: 8px 12px;
+            border-radius: 6px;
+            border: 1px solid #ddd;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: bold;
+        }
+
+        .game-map {
+            width: 100%;
+            height: 500px;
+            background-color: #88cfae;
+            border-radius: 8px;
+            box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.2);
+            position: relative;
+            overflow: hidden;
+            transition: background 1.0s ease-in-out, filter 1.0s ease-in-out; /* 가뭄 전환 애니메이션 */
+        }
+
+        .resource-node {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            font-size: 24px;
+            text-align: center;
+            line-height: 30px;
+            cursor: pointer;
+            transition: transform 0.1s, opacity 0.3s, filter 1.0s; /* 가뭄 전환 애니메이션 */
+            z-index: 10;
+        }
+
+        .resource-node:hover {
+            transform: scale(1.2);
+        }
+
+        .building-container {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .building-card {
+            background-color: #f0ffef;
+            border: 1px solid #c7d2fe;
+            border-radius: 8px;
+            padding: 15px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        }
+
+        .building-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .building-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .building-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            padding: 8px 15px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background-color 0.2s;
+            flex-grow: 1;
+        }
+
+        .btn-primary {
+            background-color: #4f46e5;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: #4338ca;
+        }
+
+        .btn-success {
+            background-color: #10b981;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background-color: #059669;
+        }
+
+        .btn-warning {
+            background-color: #f59e0b;
+            color: white;
+        }
+
+        .btn-warning:hover {
+            background-color: #d97706;
+        }
+
+        .message-box {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background-color: #333;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            opacity: 0;
+            transition: opacity 0.5s, transform 0.5s;
+            transform: translateY(-50px);
+            z-index: 1000;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .message-box.active {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        
         /* Earthquake Shake 애니메이션 */
         @keyframes shake {
             0%, 100% { transform: translate(1px, 1px) rotate(0deg); }
@@ -21,664 +208,248 @@
         
         .earthquake-shake {
             animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both infinite;
-            /* 애니메이션 적용 대상은 전체 컨테이너입니다. */
+            transform: translate3d(0, 0, 0);
+            backface-visibility: hidden;
+            perspective: 1000px;
+        }
+        
+        /* Drought Visual Styles */
+        .drought-active .game-map {
+            /* 지도 배경색을 건조하고 황폐한 색상으로 변경 */
+            background: linear-gradient(135deg, #a9886a 0%, #b89f81 30%, #d4b59b 70%, #d6c0a0 100%); 
+            /* 맵에 건조한 느낌을 주기 위해 채도와 밝기 조절 */
+            filter: saturate(0.8) brightness(0.9);
+            transition: all 1.0s ease-in-out;
         }
 
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 20px;
-            background-color: #2d5016;
-            color: #333;
+        .drought-active .resource-node[data-type="food"],
+        .drought-active .resource-node[data-type="water"] {
+            /* 가뭄 시 식량/물 노드에 시각적 변화를 줘서 피해를 강조 */
+            filter: grayscale(100%) opacity(0.5);
+            transition: filter 1.0s;
         }
-        
-        .game-container {
-            max-width: 1400px;
-            margin: 0 auto;
-            background: #f0f8e0;
-            padding: 20px;
-            border-radius: 10px;
-            position: relative; /* 엔딩 화면 오버레이를 위해 필요 */
-            transition: all 0.1s; /* 지진 애니메이션을 위해 추가 */
-        }
-        
-        .title {
-            text-align: center;
-            color: #2d5016;
-            margin-bottom: 30px;
-        }
-        
-        .game-layout {
-            display: grid;
-            grid-template-columns: 1fr 300px;
-            gap: 20px;
-        }
-        
-        .main-area {
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-        }
-        
-        .resources-panel {
-            background: white;
-            padding: 15px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        
-        .resources-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-            gap: 10px;
-            margin-bottom: 15px;
-        }
-        
-        .resource-item {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        
-        .resource-icon {
-            font-size: 24px;
-        }
-        
-        .map-container {
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            overflow: hidden;
-        }
-        
-        .map-header {
-            background: #4a90e2;
-            color: white;
-            padding: 15px;
-            text-align: center;
-            font-size: 18px;
-            font-weight: bold;
-        }
-        
-        .game-map {
-            width: 100%;
-            height: 500px;
-            position: relative;
-            background: linear-gradient(135deg, #87CEEB 0%, #98FB98 30%, #90EE90 70%, #8FBC8F 100%);
-            cursor: crosshair;
-            overflow: hidden;
-        }
-        
-        .resource-node {
-            position: absolute;
-            font-size: 32px;
-            cursor: pointer;
-            transition: transform 0.2s, filter 0.2s;
-            user-select: none;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
-            z-index: 10;
-        }
+        /* Drought Visual Styles 끝 */
 
-        /* 산불 이모지 오버레이 스타일 */
-        .fire-overlay {
-            position: absolute;
-            top: -10px; /* 아이콘 위쪽에 배치 */
-            right: -10px;
-            font-size: 24px;
-            cursor: pointer;
-            z-index: 20;
-            animation: pulse 1s infinite alternate;
-        }
-
-        @keyframes pulse {
-            from { transform: scale(1); opacity: 1; }
-            to { transform: scale(1.1); opacity: 0.8; }
-        }
-
-        
-        .resource-node:hover {
-            transform: scale(1.2);
-            filter: brightness(1.2);
-        }
-        
-        .resource-node:active {
-            transform: scale(0.9);
-        }
-        
-        .resource-node.harvesting {
-            animation: harvest 0.5s ease-in-out;
-        }
-        
-        @keyframes harvest {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.3); }
-            100% { transform: scale(1); }
-        }
-        
-        .floating-text {
-            position: absolute;
-            font-size: 20px;
-            font-weight: bold;
-            color: #2d5016;
-            animation: floatUp 1s ease-out forwards;
-            pointer-events: none;
-            z-index: 100;
-        }
-        
-        @keyframes floatUp {
-            0% {
-                opacity: 1;
-                transform: translateY(0);
-            }
-            100% {
-                opacity: 0;
-                transform: translateY(-50px);
-            }
-        }
-        
-        .worker-indicator {
-            position: absolute;
-            font-size: 16px;
-            background: rgba(255, 255, 255, 0.9);
-            border-radius: 50%;
-            width: 24px;
-            height: 24px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            top: -5px;
-            right: -5px;
-            border: 2px solid #4a90e2;
-            font-weight: bold;
-            color: #2d5016;
-        }
-        
-        .sidebar {
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-        }
-        
-        .population-info {
-            background: #e8f5e8;
-            padding: 15px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-
-        .plague-indicator {
-            display: inline-block;
-            margin-left: 10px;
-            font-size: 20px;
-            animation: blink 1s infinite;
-        }
-
-        @keyframes blink {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-        }
-        
-        .buildings-section {
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        
-        .building-card {
-            background: #f8f9fa;
-            padding: 15px;
-            border-radius: 6px;
-            margin-bottom: 15px;
-            border: 2px solid #ddd;
-        }
-        
-        .building-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 10px;
-        }
-        
-        .building-info {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        
-        .building-actions {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            margin-top: 10px;
-        }
-        
-        .worker-assignment {
-            background: #f0f8ff;
-            padding: 10px;
-            border-radius: 6px;
-            margin-top: 15px;
-        }
-        
-        .worker-resource {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 8px;
-            background: white;
-            border-radius: 4px;
-            margin-bottom: 8px;
-        }
-        
-        .worker-buttons {
-            display: flex;
-            gap: 5px;
-        }
-        
-        .btn {
-            padding: 8px 16px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 14px;
-            transition: background-color 0.2s;
-        }
-        
-        .btn-primary {
-            background-color: #4a90e2;
-            color: white;
-        }
-        
-        .btn-primary:hover {
-            background-color: #357abd;
-        }
-        
-        .btn-secondary {
-            background-color: #6c757d;
-            color: white;
-        }
-        
-        .btn-secondary:hover {
-            background-color: #545b62;
-        }
-        
-        .btn-small {
-            padding: 4px 8px;
-            font-size: 12px;
-            min-width: 24px;
-        }
-        
-        .btn-success {
-            background-color: #28a745;
-            color: white;
-        }
-        
-        .btn-success:hover {
-            background-color: #218838;
-        }
-        
-        .btn-danger {
-            background-color: #dc3545;
-            color: white;
-        }
-        
-        .btn-danger:hover {
-            background-color: #c82333;
-        }
-        
-        .bread-warning {
-            background: #fff3cd;
-            color: #856404;
-            padding: 10px;
-            border-radius: 6px;
-            margin-bottom: 10px;
-            border: 1px solid #ffeaa7;
-        }
-        
-        .btn:disabled {
-            background-color: #ccc;
-            cursor: not-allowed;
-        }
-
-        /* 재해 알림 스타일 */
+        /* 재해 알림창 스타일 */
         #disaster-alert {
-            position: fixed;
-            top: 20px;
+            position: absolute;
+            top: 50%;
             left: 50%;
-            transform: translateX(-50%);
+            transform: translate(-50%, -50%);
             padding: 15px 30px;
-            background-color: #dc3545;
+            background-color: #dc3545; /* 기본: 빨강 (재해) */
             color: white;
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-            font-size: 20px;
+            border-radius: 10px;
+            font-size: 1.2em;
             font-weight: bold;
-            z-index: 1001;
+            text-align: center;
             opacity: 0;
             visibility: hidden;
-            transition: opacity 0.5s, visibility 0.5s;
-            text-align: center;
+            transition: opacity 0.5s, visibility 0s 0.5s;
+            z-index: 100;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
         }
 
         #disaster-alert.active {
             opacity: 1;
             visibility: visible;
+            transition: opacity 0.5s;
         }
 
-        @media (max-width: 768px) {
-            .game-layout {
-                grid-template-columns: 1fr;
-            }
-            
-            .game-map {
-                height: 300px;
-            }
-            
-            .resource-node {
-                font-size: 24px;
-            }
-        }
-
-        /* 엔딩 화면 스타일 */
-        .ending-screen {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.9);
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            color: white;
-            text-align: center;
-            z-index: 1000;
-            opacity: 0;
-            visibility: hidden;
-            transition: opacity 1s;
-        }
-        
-        .ending-screen.active {
-            opacity: 1;
-            visibility: visible;
-        }
-
-        .ending-screen h2 {
-            font-size: 48px;
-            color: #ffcc00; /* 금색 */
-            margin-bottom: 20px;
-            text-shadow: 0 0 10px rgba(255, 204, 0, 0.5);
-        }
-
-        .ending-screen p {
-            font-size: 24px;
-            margin-bottom: 40px;
-        }
     </style>
 </head>
 <body>
     <div class="game-container" id="game-container">
-        <!-- 재해 알림창 -->
-        <div id="disaster-alert"></div>
-
-        <!-- 엔딩 화면 오버레이 -->
-        <div class="ending-screen" id="ending-screen">
-            <h2>🎉 승리! 대도시 건설 완료! 🎉</h2>
-            <p>축하합니다! 당신의 도시는 인구 128명을 달성하며 위대한 문명으로 성장했습니다.</p>
-            <button class="btn btn-primary" onclick="window.location.reload()">새 게임 시작</button>
-        </div>
-
-        <h1 class="title">🗺️ 지도 기반 타이쿤 게임</h1>
-        
-        <div class="game-layout">
-            <!-- 메인 영역 -->
-            <div class="main-area">
-                <!-- 자원 패널 -->
-                <div class="resources-panel">
-                    <h3>💰 자원</h3>
-                    <div class="resources-grid">
-                        <div class="resource-item">
-                            <span class="resource-icon">🌲</span>
-                            <span>나무: <strong id="wood-count">0</strong></span>
-                        </div>
-                        <div class="resource-item">
-                            <span class="resource-icon">⛰️</span>
-                            <span>돌: <strong id="stone-count">0</strong></span>
-                        </div>
-                        <div class="resource-item">
-                            <span class="resource-icon">🌾</span>
-                            <span>식량: <strong id="food-count">0</strong></span>
-                        </div>
-                        <div class="resource-item">
-                            <span class="resource-icon">💧</span>
-                            <span>물: <strong id="water-count">0</strong></span>
-                        </div>
-                        <div class="resource-item">
-                            <span class="resource-icon">🍞</span>
-                            <span>빵: <strong id="bread-count">0</strong></span>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- 지도 -->
-                <div class="map-container">
-                    <div class="map-header">🗺️ 자원 지도 - 아이콘을 클릭해서 자원을 채취하세요!</div>
-                    <div class="game-map" id="game-map"></div>
-                </div>
-
-                <!-- 개발자 커맨드 입력 창 (새로 추가됨) -->
-                <div class="developer-console" style="margin-top: 0px; padding: 15px; background: #fff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                    <h4>⚙️ 개발자 커맨드</h4>
-                    <div style="display: flex; gap: 10px;">
-                        <input type="text" id="dev-command-input" placeholder="(자원이름): (갯수) 또는 disaster: (타입) 예: wood: 1000, disaster: drought" style="flex-grow: 1; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
-                        <button class="btn btn-secondary" onclick="executeDevCommand()">실행</button>
-                    </div>
-                </div>
+        <!-- 맵 영역 -->
+        <div class="map-area">
+            <h2 style="margin-top: 0;">🗺️ 지도</h2>
+            <div class="game-map" id="game-map">
+                <div id="disaster-alert"></div> <!-- 재해 알림창 -->
+                <!-- 자원 노드는 JS에 의해 여기에 추가됩니다 -->
             </div>
             
-            <!-- 사이드바 -->
-            <div class="sidebar">
-                <!-- 인구 정보 -->
-                <div class="population-info">
-                    <h3>👥 인구 정보 <span id="plague-visual"></span></h3>
-                    <div><strong>총 인구: <span id="total-population">0</span>명</strong> / 목표: 128명</div>
-                    <div>배치된 인구: <span id="assigned-population">0</span>명</div>
-                    <div>유휴 인구: <span id="idle-population">0</span>명</div>
-                    <div id="bread-status" style="margin-top: 10px;"></div>
+            <h3 style="margin-top: 20px;">🔨 건설/개발</h3>
+            
+            <!-- 개발자 커맨드 창 -->
+            <div style="margin-top: 15px; padding: 10px; background-color: #eee; border-radius: 8px;">
+                <h4 style="margin: 0 0 10px 0;">💻 개발자 커맨드 (예: wood: 1000, disaster: drought)</h4>
+                <div style="display: flex; gap: 10px;">
+                    <input type="text" id="dev-command-input" placeholder="커맨드 입력" style="flex-grow: 1; padding: 5px; border-radius: 4px; border: 1px solid #ccc;">
+                    <button class="btn btn-warning" onclick="executeDevCommand()">실행</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 통계 및 건물 영역 -->
+        <div class="stats-area">
+            <div style="position: sticky; top: 0; background-color: #ffffff; padding-bottom: 10px; z-index: 50;">
+                <h2 style="margin-top: 0;">📊 통계</h2>
+                <div class="stat-card">
+                    <h3 style="margin: 0 0 10px 0;">💰 자원</h3>
+                    <ul class="resource-list" id="resource-stats">
+                        <!-- JS에 의해 채워집니다 -->
+                    </ul>
+                </div>
+                <div class="stat-card">
+                    <h3 style="margin: 0 0 10px 0;">🧑 인구 및 노동</h3>
+                    <p>총 인구: <span id="population-count">0</span>명</p>
+                    <p>사용 가능한 노동자: <span id="available-workers">0</span>명</p>
+                </div>
+            </div>
+
+            <h2 style="margin-top: 0;">🏢 건물</h2>
+            <div class="building-container">
+                <!-- 주택 -->
+                <div class="building-card">
+                    <div class="building-header">
+                        <div class="building-info">
+                            <span style="font-size: 24px;">🏠</span>
+                            <div>
+                                <h4 style="margin: 0;">주택</h4>
+                                <p style="margin: 0; color: #666;">레벨 <span id="house-level">0</span> | 인구 <span id="house-population">0</span>명</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="building-actions">
+                        <button class="btn btn-primary" onclick="buildHouse()" id="build-house-btn">
+                            주택 짓기 (나무 100, 돌 50)
+                        </button>
+                        <button class="btn btn-success" onclick="upgradeHouse()" id="upgrade-house-btn" style="display: none;">
+                            주택 업그레이드 (나무 200, 돌 100)
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 식당 -->
+                <div class="building-card">
+                    <div class="building-header">
+                        <div class="building-info">
+                            <span style="font-size: 24px;">🍽️</span>
+                            <div>
+                                <h4 style="margin: 0;">식당</h4>
+                                <p style="margin: 0; color: #666;">레벨 <span id="restaurant-level">0</span> | 요리사 <span id="restaurant-workers">0</span>명</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="building-actions">
+                        <button class="btn btn-primary" onclick="buildRestaurant()" id="build-restaurant-btn">
+                            식당 짓기 (나무 50, 돌 30)
+                        </button>
+                        <button class="btn btn-success" onclick="upgradeRestaurant()" id="upgrade-restaurant-btn" style="display: none;">
+                            식당 업그레이드 (나무 100, 돌 60)
+                        </button>
+                    </div>
+                    <div style="margin-top: 10px; display: flex; gap: 5px;">
+                        <button class="btn btn-warning" onclick="assignWorker('restaurant', 1)">요리사 +1</button>
+                        <button class="btn btn-warning" onclick="assignWorker('restaurant', -1)">요리사 -1</button>
+                    </div>
+                </div>
+
+                <!-- 벌목장 (나무) -->
+                <div class="building-card">
+                    <div class="building-header">
+                        <div class="building-info">
+                            <span style="font-size: 24px;">🌲</span>
+                            <div>
+                                <h4 style="margin: 0;">벌목장</h4>
+                                <p style="margin: 0; color: #666;">레벨 <span id="sawmill-level">0</span> | 노동자 <span id="sawmill-workers">0</span>명</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="building-actions">
+                        <button class="btn btn-primary" onclick="buildSawmill()" id="build-sawmill-btn">
+                            벌목장 짓기 (나무 20, 돌 10)
+                        </button>
+                        <button class="btn btn-success" onclick="upgradeSawmill()" id="upgrade-sawmill-btn" style="display: none;">
+                            벌목장 업그레이드 (나무 40, 돌 20)
+                        </button>
+                    </div>
+                    <div style="margin-top: 10px; display: flex; gap: 5px;">
+                        <button class="btn btn-warning" onclick="assignWorker('wood', 1)">벌목꾼 +1</button>
+                        <button class="btn btn-warning" onclick="assignWorker('wood', -1)">벌목꾼 -1</button>
+                    </div>
+                </div>
+
+                <!-- 채석장 (돌) -->
+                <div class="building-card">
+                    <div class="building-header">
+                        <div class="building-info">
+                            <span style="font-size: 24px;">⛏️</span>
+                            <div>
+                                <h4 style="margin: 0;">채석장</h4>
+                                <p style="margin: 0; color: #666;">레벨 <span id="quarry-level">0</span> | 노동자 <span id="quarry-workers">0</span>명</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="building-actions">
+                        <button class="btn btn-primary" onclick="buildQuarry()" id="build-quarry-btn">
+                            채석장 짓기 (나무 20, 돌 10)
+                        </button>
+                        <button class="btn btn-success" onclick="upgradeQuarry()" id="upgrade-quarry-btn" style="display: none;">
+                            채석장 업그레이드 (나무 40, 돌 20)
+                        </button>
+                    </div>
+                    <div style="margin-top: 10px; display: flex; gap: 5px;">
+                        <button class="btn btn-warning" onclick="assignWorker('stone', 1)">채석꾼 +1</button>
+                        <button class="btn btn-warning" onclick="assignWorker('stone', -1)">채석꾼 -1</button>
+                    </div>
                 </div>
                 
-                <!-- 일꾼 배치 -->
-                <div class="worker-assignment" id="worker-assignment" style="display: none;">
-                    <h4>👷 일꾼 배치</h4>
-                    <div class="worker-resource">
-                        <div>
-                            <span>🌲 나무꾼: <strong id="wood-workers">0</strong>명</span>
-                        </div>
-                        <div class="worker-buttons">
-                            <button class="btn btn-secondary btn-small" onclick="assignWorker('wood', -1)">-</button>
-                            <button class="btn btn-success btn-small" onclick="assignWorker('wood', 1)">+</button>
-                        </div>
-                    </div>
-                    
-                    <div class="worker-resource">
-                        <div>
-                            <span>⛰️ 채석꾼: <strong id="stone-workers">0</strong>명</span>
-                        </div>
-                        <div class="worker-buttons">
-                            <button class="btn btn-secondary btn-small" onclick="assignWorker('stone', -1)">-</button>
-                            <button class="btn btn-success btn-small" onclick="assignWorker('stone', 1)">+</button>
+                <!-- 물 공급 시설 (물) -->
+                <div class="building-card">
+                    <div class="building-header">
+                        <div class="building-info">
+                            <span style="font-size: 24px;">💧</span>
+                            <div>
+                                <h4 style="margin: 0;">물 공급 시설</h4>
+                                <p style="margin: 0; color: #666;">레벨 <span id="waterplant-level">0</span> | 노동자 <span id="waterplant-workers">0</span>명</p>
+                            </div>
                         </div>
                     </div>
-                    
-                    <div class="worker-resource">
-                        <div>
-                            <span>🚜 농부: <strong id="food-workers">0</strong>명</span>
-                        </div>
-                        <div class="worker-buttons">
-                            <button class="btn btn-secondary btn-small" onclick="assignWorker('food', -1)">-</button>
-                            <button class="btn btn-success btn-small" onclick="assignWorker('food', 1)">+</button>
-                        </div>
+                    <div class="building-actions">
+                        <button class="btn btn-primary" onclick="buildWaterplant()" id="build-waterplant-btn">
+                            물 공급 시설 짓기 (나무 30, 돌 15)
+                        </button>
+                        <button class="btn btn-success" onclick="upgradeWaterplant()" id="upgrade-waterplant-btn" style="display: none;">
+                            물 공급 시설 업그레이드 (나무 60, 돌 30)
+                        </button>
                     </div>
-                    
-                    <div class="worker-resource">
-                        <div>
-                            <span>💧 물꾼: <strong id="water-workers">0</strong>명</span>
-                        </div>
-                        <div class="worker-buttons">
-                            <button class="btn btn-secondary btn-small" onclick="assignWorker('water', -1)">-</button>
-                            <button class="btn btn-success btn-small" onclick="assignWorker('water', 1)">+</button>
-                        </div>
+                    <div style="margin-top: 10px; display: flex; gap: 5px;">
+                        <button class="btn btn-warning" onclick="assignWorker('water', 1)">물 관리인 +1</button>
+                        <button class="btn btn-warning" onclick="assignWorker('water', -1)">물 관리인 -1</button>
                     </div>
                 </div>
-                
-                <!-- 건물 섹션 -->
-                <div class="buildings-section">
-                    <h3>🏘️ 건물</h3>
-                    
-                    <div class="building-card">
-                        <div class="building-header">
-                            <div class="building-info">
-                                <span style="font-size: 24px;">🏠</span>
-                                <div>
-                                    <h4 style="margin: 0;">집</h4>
-                                    <p style="margin: 0; color: #666;">레벨 <span id="house-level">0</span> | 인구: <span id="house-population">0</span>명</p>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="building-actions">
-                            <button class="btn btn-primary" onclick="buildHouse()" id="build-house-btn">
-                                집 짓기 (나무 10, 돌 5)
-                            </button>
-                            <button class="btn btn-success" onclick="upgradeHouse()" id="upgrade-house-btn" style="display: none;">
-                                집 업그레이드 (나무 <span id="upgrade-wood-cost">20</span>, 돌 <span id="upgrade-stone-cost">10</span>)
-                            </button>
-                        </div>
-                    </div>
-                    
-                    <div class="building-card">
-                        <div class="building-header">
-                            <div class="building-info">
-                                <span style="font-size: 24px;">🍽️</span>
-                                <div>
-                                    <h4 style="margin: 0;">식당</h4>
-                                    <p style="margin: 0; color: #666;">레벨 <span id="restaurant-level">0</span> | 요리사: <span id="restaurant-workers">0</span>/<span id="restaurant-max-workers">0</span>명</p>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="building-actions">
-                            <button class="btn btn-primary" onclick="buildRestaurant()" id="build-restaurant-btn">
-                                식당 짓기 (나무 15, 돌 8)
-                            </button>
-                            <button class="btn btn-success" onclick="upgradeRestaurant()" id="upgrade-restaurant-btn" style="display: none;">
-                                식당 업그레이드 (나무 <span id="upgrade-restaurant-wood">30</span>, 돌 <span id="upgrade-restaurant-stone">15</span>)
-                            </button>
-                        </div>
-                        <div id="restaurant-worker-control" style="display: none; margin-top: 10px;">
-                            <div class="worker-resource">
-                                <div>
-                                    <span>👨‍🍳 요리사 배치</span>
-                                    <p style="margin: 5px 0; font-size: 12px; color: #666;">물 1 + 식량 1 → 빵 1 생산</p>
-                                </div>
-                                <div class="worker-buttons">
-                                    <button class="btn btn-secondary btn-small" onclick="assignRestaurantWorker(-1)" id="restaurant-worker-minus-btn">-</button>
-                                    <button class="btn btn-success btn-small" onclick="assignRestaurantWorker(1)" id="restaurant-worker-plus-btn">+</button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
 
-                    <!-- 제재소 -->
-                    <div class="building-card">
-                        <div class="building-header">
-                            <div class="building-info">
-                                <span style="font-size: 24px;">🏭</span>
-                                <div>
-                                    <h4 style="margin: 0;">제재소</h4>
-                                    <p style="margin: 0; color: #666;">레벨 <span id="sawmill-level">0</span> | 나무 생산량 +<span id="sawmill-bonus">0</span>%</p>
-                                </div>
+                <!-- 농장 (식량) -->
+                <div class="building-card">
+                    <div class="building-header">
+                        <div class="building-info">
+                            <span style="font-size: 24px;">🚜</span>
+                            <div>
+                                <h4 style="margin: 0;">농장</h4>
+                                <p style="margin: 0; color: #666;">레벨 <span id="farm-level">0</span> | 노동자 <span id="farm-workers">0</span>명</p>
                             </div>
                         </div>
-                        <div class="building-actions">
-                            <button class="btn btn-primary" onclick="buildSawmill()" id="build-sawmill-btn">
-                                제재소 짓기 (나무 50, 돌 20)
-                            </button>
-                            <button class="btn btn-success" onclick="upgradeSawmill()" id="upgrade-sawmill-btn" style="display: none;">
-                                제재소 업그레이드 (나무 <span id="upgrade-sawmill-wood">100</span>, 돌 <span id="upgrade-sawmill-stone">40</span>)
-                            </button>
-                        </div>
                     </div>
-                    
-                    <!-- 채석장 (새로 추가) -->
-                    <div class="building-card">
-                        <div class="building-header">
-                            <div class="building-info">
-                                <span style="font-size: 24px;">⛏️</span>
-                                <div>
-                                    <h4 style="margin: 0;">채석장</h4>
-                                    <p style="margin: 0; color: #666;">레벨 <span id="quarry-level">0</span> | 돌 생산량 +<span id="quarry-bonus">0</span>%</p>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="building-actions">
-                            <button class="btn btn-primary" onclick="buildQuarry()" id="build-quarry-btn">
-                                채석장 짓기 (돌 50, 나무 20)
-                            </button>
-                            <button class="btn btn-success" onclick="upgradeQuarry()" id="upgrade-quarry-btn" style="display: none;">
-                                채석장 업그레이드 (돌 <span id="upgrade-quarry-stone">100</span>, 나무 <span id="upgrade-quarry-wood">40</span>)
-                            </button>
-                        </div>
+                    <div class="building-actions">
+                        <button class="btn btn-primary" onclick="buildFarm()" id="build-farm-btn">
+                            농장 짓기 (나무 40, 물 20)
+                        </button>
+                        <button class="btn btn-success" onclick="upgradeFarm()" id="upgrade-farm-btn" style="display: none;">
+                            농장 업그레이드 (나무 <span id="upgrade-farm-wood">80</span>, 물 <span id="upgrade-farm-water">40</span>)
+                        </button>
                     </div>
-
-                    <!-- 정수 시설 (새로 추가) -->
-                    <div class="building-card">
-                        <div class="building-header">
-                            <div class="building-info">
-                                <span style="font-size: 24px;">🧪</span>
-                                <div>
-                                    <h4 style="margin: 0;">정수 시설</h4>
-                                    <p style="margin: 0; color: #666;">레벨 <span id="waterplant-level">0</span> | 물 생산량 +<span id="waterplant-bonus">0</span>%</p>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="building-actions">
-                            <button class="btn btn-primary" onclick="buildWaterPlant()" id="build-waterplant-btn">
-                                정수 시설 짓기 (돌 30, 나무 30)
-                            </button>
-                            <button class="btn btn-success" onclick="upgradeWaterPlant()" id="upgrade-waterplant-btn" style="display: none;">
-                                정수 시설 업그레이드 (돌 <span id="upgrade-waterplant-stone">60</span>, 나무 <span id="upgrade-waterplant-wood">60</span>)
-                            </button>
-                        </div>
+                    <div style="margin-top: 10px; display: flex; gap: 5px;">
+                        <button class="btn btn-warning" onclick="assignWorker('food', 1)">농부 +1</button>
+                        <button class="btn btn-warning" onclick="assignWorker('food', -1)">농부 -1</button>
                     </div>
-
-                    <!-- 농장 (새로 추가) -->
-                    <div class="building-card">
-                        <div class="building-header">
-                            <div class="building-info">
-                                <span style="font-size: 24px;">🚜</span>
-                                <div>
-                                    <h4 style="margin: 0;">농장</h4>
-                                    <p style="margin: 0; color: #666;">레벨 <span id="farm-level">0</span> | 식량 생산량 +<span id="farm-bonus">0</span>%</p>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="building-actions">
-                            <button class="btn btn-primary" onclick="buildFarm()" id="build-farm-btn">
-                                농장 짓기 (나무 40, 물 20)
-                            </button>
-                            <button class="btn btn-success" onclick="upgradeFarm()" id="upgrade-farm-btn" style="display: none;">
-                                농장 업그레이드 (나무 <span id="upgrade-farm-wood">80</span>, 물 <span id="upgrade-farm-water">40</span>)
-                            </button>
-                        </div>
-                    </div>
-
                 </div>
+
             </div>
         </div>
     </div>
+    <div class="message-box" id="message-box"></div>
     <!-- 게임 로직 파일을 로드합니다. -->
     <script src="index.js"></script>
 </body>
 </html>
-
-

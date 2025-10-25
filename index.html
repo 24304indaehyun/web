@@ -5,6 +5,25 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>지도 기반 타이쿤 게임</title>
     <style>
+        /* Earthquake Shake 애니메이션 */
+        @keyframes shake {
+            0%, 100% { transform: translate(1px, 1px) rotate(0deg); }
+            10% { transform: translate(-1px, -2px) rotate(-1deg); }
+            20% { transform: translate(-3px, 0px) rotate(1deg); }
+            30% { transform: translate(3px, 2px) rotate(0deg); }
+            40% { transform: translate(1px, -1px) rotate(1deg); }
+            50% { transform: translate(-1px, 2px) rotate(-1deg); }
+            60% { transform: translate(-3px, 1px) rotate(0deg); }
+            70% { transform: translate(3px, 1px) rotate(-1deg); }
+            80% { transform: translate(-1px, -1px) rotate(1deg); }
+            90% { transform: translate(1px, 2px) rotate(0deg); }
+        }
+        
+        .earthquake-shake {
+            animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both infinite;
+            /* 애니메이션 적용 대상은 전체 컨테이너입니다. */
+        }
+
         body {
             font-family: Arial, sans-serif;
             margin: 0;
@@ -20,6 +39,7 @@
             padding: 20px;
             border-radius: 10px;
             position: relative; /* 엔딩 화면 오버레이를 위해 필요 */
+            transition: all 0.1s; /* 지진 애니메이션을 위해 추가 */
         }
         
         .title {
@@ -98,6 +118,23 @@
             text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
             z-index: 10;
         }
+
+        /* 산불 이모지 오버레이 스타일 */
+        .fire-overlay {
+            position: absolute;
+            top: -10px; /* 아이콘 위쪽에 배치 */
+            right: -10px;
+            font-size: 24px;
+            cursor: pointer;
+            z-index: 20;
+            animation: pulse 1s infinite alternate;
+        }
+
+        @keyframes pulse {
+            from { transform: scale(1); opacity: 1; }
+            to { transform: scale(1.1); opacity: 0.8; }
+        }
+
         
         .resource-node:hover {
             transform: scale(1.2);
@@ -168,6 +205,18 @@
             border-radius: 8px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
+
+        .plague-indicator {
+            display: inline-block;
+            margin-left: 10px;
+            font-size: 20px;
+            animation: blink 1s infinite;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
         
         .buildings-section {
             background: white;
@@ -209,13 +258,6 @@
             padding: 10px;
             border-radius: 6px;
             margin-top: 15px;
-        }
-        
-        .worker-controls {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin-top: 10px;
         }
         
         .worker-resource {
@@ -298,6 +340,31 @@
             cursor: not-allowed;
         }
 
+        /* 재해 알림 스타일 */
+        #disaster-alert {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 15px 30px;
+            background-color: #dc3545;
+            color: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+            font-size: 20px;
+            font-weight: bold;
+            z-index: 1001;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.5s, visibility 0.5s;
+            text-align: center;
+        }
+
+        #disaster-alert.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
         @media (max-width: 768px) {
             .game-layout {
                 grid-template-columns: 1fr;
@@ -351,7 +418,10 @@
     </style>
 </head>
 <body>
-    <div class="game-container">
+    <div class="game-container" id="game-container">
+        <!-- 재해 알림창 -->
+        <div id="disaster-alert"></div>
+
         <!-- 엔딩 화면 오버레이 -->
         <div class="ending-screen" id="ending-screen">
             <h2>🎉 승리! 대도시 건설 완료! 🎉</h2>
@@ -369,11 +439,11 @@
                     <h3>💰 자원</h3>
                     <div class="resources-grid">
                         <div class="resource-item">
-                            <span class="resource-icon">🪵</span>
+                            <span class="resource-icon">🌲</span>
                             <span>나무: <strong id="wood-count">0</strong></span>
                         </div>
                         <div class="resource-item">
-                            <span class="resource-icon">🪨</span>
+                            <span class="resource-icon">⛰️</span>
                             <span>돌: <strong id="stone-count">0</strong></span>
                         </div>
                         <div class="resource-item">
@@ -396,13 +466,22 @@
                     <div class="map-header">🗺️ 자원 지도 - 아이콘을 클릭해서 자원을 채취하세요!</div>
                     <div class="game-map" id="game-map"></div>
                 </div>
+
+                <!-- 개발자 커맨드 입력 창 (새로 추가됨) -->
+                <div class="developer-console" style="margin-top: 0px; padding: 15px; background: #fff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                    <h4>⚙️ 개발자 커맨드</h4>
+                    <div style="display: flex; gap: 10px;">
+                        <input type="text" id="dev-command-input" placeholder="(자원이름): (갯수) 또는 disaster: (타입) 예: wood: 1000, disaster: drought" style="flex-grow: 1; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                        <button class="btn btn-secondary" onclick="executeDevCommand()">실행</button>
+                    </div>
+                </div>
             </div>
             
             <!-- 사이드바 -->
             <div class="sidebar">
                 <!-- 인구 정보 -->
                 <div class="population-info">
-                    <h3>👥 인구 정보</h3>
+                    <h3>👥 인구 정보 <span id="plague-visual"></span></h3>
                     <div><strong>총 인구: <span id="total-population">0</span>명</strong> / 목표: 128명</div>
                     <div>배치된 인구: <span id="assigned-population">0</span>명</div>
                     <div>유휴 인구: <span id="idle-population">0</span>명</div>
@@ -513,7 +592,7 @@
                     <div class="building-card">
                         <div class="building-header">
                             <div class="building-info">
-                                <span style="font-size: 24px;">🪚</span>
+                                <span style="font-size: 24px;">🏭</span>
                                 <div>
                                     <h4 style="margin: 0;">제재소</h4>
                                     <p style="margin: 0; color: #666;">레벨 <span id="sawmill-level">0</span> | 나무 생산량 +<span id="sawmill-bonus">0</span>%</p>
@@ -601,4 +680,5 @@
     <script src="index.js"></script>
 </body>
 </html>
+
 

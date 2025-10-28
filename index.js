@@ -547,6 +547,22 @@
             }
             // --- 추가 끝 ---
 
+            // --- 긍정적 이벤트 시각 효과 추가 ---
+            const harvestMoonVisual = document.getElementById('harvest-moon-visual');
+            if (gameState.activeBlessing === 'harvest_moon') {
+                harvestMoonVisual.innerHTML = `<span class="plague-indicator" title="풍작이 지속되고 있습니다">🌕</span>`;
+            } else {
+                harvestMoonVisual.innerHTML = '';
+            }
+            
+            const gentleRainVisual = document.getElementById('gentle-rain-visual');
+            if (gameState.activeBlessing === 'gentle_rain') {
+                gentleRainVisual.innerHTML = `<span class="plague-indicator" title="단비가 지속되고 있습니다">🌧️</span>`;
+            } else {
+                gentleRainVisual.innerHTML = '';
+            }
+            // --- 추가 끝 ---
+
             // 일꾼 수 업데이트 (기존과 동일)
             document.getElementById('wood-workers').textContent = gameState.workers.wood;
             document.getElementById('stone-workers').textContent = gameState.workers.stone;
@@ -1115,13 +1131,13 @@
 
             const roll = Math.random();
 
-            // --- 3. 긍정적 이벤트 10% 확률 ---
-            if (roll < 0.10) { 
+            // --- 확률 수정: 긍정적 이벤트 5% 확률 ---
+            if (roll < 0.05) { 
                 const randomBlessing = blessings[Math.floor(Math.random() * blessings.length)];
                 activateBlessing(randomBlessing);
             }
-            // --- 3. 재해 20% 확률 (긍정적 이벤트와 중복 안됨) ---
-            else if (roll < 0.30) { // (0.10 + 0.20)
+            // --- 확률 수정: 재해 20% 확률 (0.05 + 0.20 = 0.25) ---
+            else if (roll < 0.25) { 
                 const randomDisaster = disasters[Math.floor(Math.random() * disasters.length)];
                 activateDisaster(randomDisaster);
             }

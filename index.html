@@ -3,71 +3,34 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>응급실 병상 현황 실시간 대시보드</title>
-    <!-- Tailwind CSS CDN 로드 -->
+    <title>AI 비서 대화 로그</title>
+    <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* 폰트 설정 */
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: #f7f9fb;
-        }
-        /* 스크롤바 숨기기 (깔끔한 디자인) */
-        .hide-scrollbar::-webkit-scrollbar {
-            display: none;
-        }
-        .hide-scrollbar {
-            -ms-overflow-style: none;  /* IE and Edge */
-            scrollbar-width: none;  /* Firefox */
-        }
-        .hospital-card {
-            transition: transform 0.2s, box-shadow 0.2s;
-        }
-        .hospital-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
-        }
-        /* 선택된 탭 스타일 */
-        .tab-active {
-            @apply bg-blue-600 text-white shadow-lg;
-        }
+        /* Tailwind의 기본 폰트(Inter) 적용 */
+        body { font-family: 'Inter', sans-serif; }
     </style>
 </head>
-<body class="p-4 md:p-8">
+<body class="bg-gray-100">
 
-    <div class="max-w-6xl mx-auto">
-        <header class="mb-8 p-6 bg-white shadow-lg rounded-xl">
-            <h1 class="text-3xl md:text-4xl font-extrabold text-blue-800">🏥 실시간 응급실 현황</h1>
-            <p class="text-gray-600 mt-2">Firebase Realtime DB를 통해 병상 가용 정보 및 특화 진료과를 확인하고 상태를 업데이트합니다.</p>
+    <div class="container mx-auto max-w-4xl p-4 py-8 md:p-12">
+        <header class="mb-6">
+            <h1 class="text-3xl font-bold text-gray-900">AI 비서 대화 로그</h1>
+            <p id="status" class="text-gray-600 mt-2">Firebase 연결 대기 중...</p>
         </header>
 
-        <!-- 로딩 인디케이터 -->
-        <div id="loading" class="text-center py-12 text-gray-500 text-lg">
-            <svg class="animate-spin h-8 w-8 text-blue-500 mx-auto mb-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-            데이터를 불러오는 중...
-        </div>
-
-        <!-- 병원 선택 탭 (버튼 목록) -->
-        <nav id="nav-tabs" class="hide-scrollbar flex overflow-x-auto space-x-3 p-2 bg-white rounded-xl shadow-md mb-6">
-            <!-- 병원 선택 버튼이 여기에 동적으로 추가됩니다 -->
-        </nav>
-
-        <!-- 상세 정보 뷰 -->
-        <div id="detail-view" class="max-w-xl mx-auto">
-            <!-- 선택된 병원의 상세 카드가 여기에 렌더링됩니다 -->
-        </div>
-
-        <!-- 메시지 박스 (성공/실패 알림용) -->
-        <div id="message-box" class="fixed bottom-4 right-4 p-3 rounded-lg shadow-xl text-white hidden transition duration-300"></div>
-
+        <!-- 로그가 표시될 컨테이너 -->
+        <main id="log-container" class="bg-white rounded-lg shadow-xl overflow-hidden">
+            <!-- 자바스크립트로 로그 항목이 여기에 추가됩니다. -->
+            <div class="p-8 text-center text-gray-500">
+                로그를 불러오는 중입니다...
+            </div>
+        </main>
     </div>
-    <!-- 게임 로직 파일을 로드합니다. -->
-    <script src="index.js"></script>
+
+    <!-- 분리된 JavaScript 파일 로드 -->
+    <!-- type="module"은 import/export 구문을 사용하기 위해 필수입니다. -->
+    <script type="module" src="index.js"></script>
+
 </body>
 </html>
-
-
-

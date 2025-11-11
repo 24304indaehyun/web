@@ -21,8 +21,7 @@ const firebaseConfig = {
   projectId: "aisuhang-c3de2",
   storageBucket: "aisuhang-c3de2.firebasestorage.app",
   messagingSenderId: "1025948611403",
-  appId: "1:1025948611403:web:bf2b4d47f9505105f86ece",
-  measurementId: "G-YNP0ETRENS"
+  appId: "1:1025948611403:web:bf2b4d47f9505105f86ece"
 };
 
 // UI 요소 가져오기
@@ -162,3 +161,4 @@ async function main() {
 
 // 앱 실행
 main();
+

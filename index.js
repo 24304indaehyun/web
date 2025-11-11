@@ -14,14 +14,7 @@ import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/11
 //
 // --------------------------------------------------------------------
 
-// Import the functions you need from the SDKs you need
-import { initializeApp } from "firebase/app";
-import { getAnalytics } from "firebase/analytics";
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
 
-// Your web app's Firebase configuration
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
   apiKey: "AIzaSyChGJHdg8wwFJYcI-9T6DGBtiyTKuoRU9E",
   authDomain: "aisuhang-c3de2.firebaseapp.com",
@@ -33,9 +26,6 @@ const firebaseConfig = {
   measurementId: "G-YNP0ETRENS"
 };
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const analytics = getAnalytics(app);
 
 // UI 요소 가져오기
 const statusEl = document.getElementById('status');
@@ -174,6 +164,7 @@ async function main() {
 
 // 앱 실행
 main();
+
 
 
 

@@ -1,239 +1,164 @@
-        // Firebase Client SDK 모듈 가져오기
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getDatabase, ref, onValue, runTransaction } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
+// Firebase SDK (v11.6.1)
+// Firebase 앱 SDK (필수)
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+// Firebase 인증 SDK (익명 로그인을 위해 필요)
+import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+// Firebase Realtime Database SDK (데이터 읽기용)
+import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
 
-        // 전역 변수 설정 (캔버스 환경에서 제공됨)
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
-        
-        // 사용자가 제공한 RTDB URL. 
-        const USER_DB_URL = "https://hackathon-13e76-default-rtdb.asia-southeast1.firebasedatabase.app"; 
+// --------------------------------------------------------------------
+// /* --- 1. 중요: 여기에 Firebase 웹 구성 붙여넣기 --- */
+//
+//    Firebase 콘솔 > 프로젝트 설정 > 내 앱 > SDK 설정 및 구성
+//    에서 'firebaseConfig' 변수 내용을 복사하여 아래에 붙여넣으세요.
+//
+// --------------------------------------------------------------------
 
-        const loadingElement = document.getElementById('loading');
-        const navTabs = document.getElementById('nav-tabs');
-        const detailView = document.getElementById('detail-view');
-        const messageBox = document.getElementById('message-box');
+const firebaseConfig = {
+  apiKey: "AIzaSyChGJHdg8wwFJYcI-9T6DGBtiyTKuoRU9E",
+  authDomain: "aisuhang-c3de2.firebaseapp.com",
+  databaseURL: "https://aisuhang-c3de2-default-rtdb.firebaseio.com",
+  projectId: "aisuhang-c3de2",
+  storageBucket: "aisuhang-c3de2.firebasestorage.app",
+  messagingSenderId: "1025948611403",
+  appId: "1:1025948611403:web:bf2b4d47f9505105f86ece",
+  measurementId: "G-YNP0ETRENS"
+};
 
-        let db = null;
-        let allHospitalsData = {}; // 전체 병원 데이터를 저장할 객체
-        let currentHospitalId = null; // 현재 선택된 병원 ID
+// UI 요소 가져오기
+const statusEl = document.getElementById('status');
+const logContainer = document.getElementById('log-container');
 
-        // 각 병원 ID에 대한 센스있는 소개 문구
-        const HOSPITAL_INTRODUCTIONS = {
-            'hospital_A': '최고의 심장 전문의들이 24시간 대기하며 생명을 지키는 곳, A 병원입니다.',
-            'hospital_B': '외상 치료의 골든타임을 책임지는 신속함! B 병원에서 안심하고 치료받으세요.',
-            'hospital_C': '소아부터 노인까지, 온 가족이 신뢰하는 통합 진료 시스템을 갖춘 C 병원입니다.',
-            'hospital_D': '뇌졸중, 신경계 질환에 특화된 최첨단 장비와 전문 인력을 보유하고 있습니다.',
-            'hospital_E': '화상 및 중증 외과 수술에 특화된 지역 거점 병원으로서의 역할을 다합니다.',
-            'hospital_F': '각 분야 최고의 베테랑 내과 전문의들이 복잡한 내과 질환을 진단하고 치료합니다.',
-            'hospital_G': '희귀 질환 및 이식 수술 분야에서 독보적인 기술력을 자랑하는 G 병원입니다.'
-            // 실제 데이터와 ID가 다를 경우, 여기에 추가하거나 DB 데이터를 확인하여 매칭해주세요.
-        };
+/**
+ * 감정 문자열에 따라 다른 Tailwind CSS 클래스를 반환합니다.
+ */
+function getEmotionBadge(emotion) {
+    const baseClasses = "inline-block text-xs font-semibold mr-2 px-2.5 py-0.5 rounded-full";
+    switch (emotion.toUpperCase()) {
+        case 'JOY':
+            return `${baseClasses} bg-green-100 text-green-800`;
+        case 'SAD':
+            return `${baseClasses} bg-red-100 text-red-800`;
+        case 'THINKING':
+            return `${baseClasses} bg-yellow-100 text-yellow-800`;
+        case 'SURPRISE':
+            return `${baseClasses} bg-purple-100 text-purple-800`;
+        case 'LISTENING':
+            return `${baseClasses} bg-blue-100 text-blue-800`;
+        case 'NEUTRAL':
+        default:
+            return `${baseClasses} bg-gray-200 text-gray-800`;
+    }
+}
 
-        // 메시지 박스 표시 함수
-        const showMessage = (message, isSuccess = true) => {
-            messageBox.textContent = message;
-            messageBox.classList.remove('hidden', 'bg-red-500', 'bg-green-500');
-            messageBox.classList.add(isSuccess ? 'bg-green-500' : 'bg-red-500');
+/**
+ * 아이콘 SVG
+ */
+const userIcon = `
+    <svg class="w-6 h-6 text-gray-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+    </svg>`;
+
+const geminiIcon = `
+    <svg class="w-6 h-6 text-indigo-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+    </svg>`;
+
+/**
+ * 로그 항목을 HTML로 렌더링합니다.
+ */
+function renderLogEntry(log) {
+    // 타임스탬프를 한국 시간 형식으로 변환
+    const timestamp = new Date(log.timestamp).toLocaleString('ko-KR', {
+        year: 'numeric', month: 'short', day: 'numeric', 
+        hour: '2-digit', minute: '2-digit', second: '2-digit'
+    });
+
+    return `
+        <div class="border-b border-gray-200 p-4 hover:bg-gray-50 transition-colors">
+            <!-- 헤더: 타임스탬프와 감정 -->
+            <div class="flex justify-between items-center mb-3">
+                <span class="text-sm text-gray-500">${timestamp}</span>
+                <span class="${getEmotionBadge(log.emotion)}">${log.emotion}</span>
+            </div>
             
-            setTimeout(() => {
-                messageBox.classList.add('hidden');
-            }, 3000);
-        };
-
-        // --- 1. Firebase 초기화 및 RTDB 연결 설정 ---
-        if (firebaseConfig) {
-            try {
-                // 사용자 URL로 databaseURL 속성을 덮어씌웁니다.
-                firebaseConfig.databaseURL = USER_DB_URL; 
-
-                const app = initializeApp(firebaseConfig);
-                db = getDatabase(app);
-                loadingElement.textContent = '데이터베이스 연결 성공. 데이터 수신 대기 중...';
-            } catch (error) {
-                loadingElement.textContent = `Firebase 초기화 실패: ${error.message}. 콘솔을 확인하세요.`;
-                console.error("Firebase Initialization Error:", error);
-            }
-        } else {
-            loadingElement.textContent = '오류: Firebase 설정 정보(__firebase_config)를 찾을 수 없습니다.';
-            console.error("Configuration Error: __firebase_config is missing.");
-        }
-
-        // --- 2. Realtime Database 상태 업데이트 (트랜잭션) ---
-        window.updateBedStatus = (hospitalId, change) => {
-            if (!db) return;
-
-            const hospitalRef = ref(db, `hospitals/${hospitalId}`);
-            const status = change === -1 ? "입원" : "퇴원";
-
-            runTransaction(hospitalRef, (currentStatus) => {
-                if (currentStatus === null) {
-                    showMessage(`[${status}] 실패: 병원 데이터를 찾을 수 없습니다.`, false);
-                    return;
-                }
-
-                const available = currentStatus.available_er_beds || 0;
-                const occupied = currentStatus.occupied_er_beds || 0;
-                const total = currentStatus.total_er_beds || 0;
-
-                const newAvailable = available + change;
-                const newOccupied = occupied - change;
-
-                // 유효성 검사
-                if (newAvailable < 0 || newAvailable > total) {
-                    const message = `[${status}] 실패: ${currentStatus.name} 병상 수 (${newAvailable} / ${total})가 범위를 벗어납니다.`;
-                    console.warn(message);
-                    showMessage(message, false);
-                    return; 
-                }
-                
-                // 새로운 상태로 업데이트
-                currentStatus.available_er_beds = newAvailable;
-                currentStatus.occupied_er_beds = newOccupied;
-                
-                return currentStatus; // 업데이트된 객체를 반환하면 DB에 커밋됩니다.
-            })
-            .then((result) => {
-                if (result.committed) {
-                    showMessage(`${result.snapshot.val().name}: 환자 ${status} 처리 완료! (가용: ${result.snapshot.val().available_er_beds})`, true);
-                    // DB가 업데이트되면 onValue 리스너가 호출되므로 detailView는 자동으로 업데이트됨.
-                }
-            })
-            .catch((error) => {
-                console.error("Transaction failed:", error);
-                showMessage(`[${status}] DB 트랜잭션 중 심각한 오류 발생.`, false);
-            });
-        };
-
-        // --- 3. 상세 정보 렌더링 함수 ---
-        window.displayHospitalDetail = (hospitalId) => {
-            currentHospitalId = hospitalId;
-            const hospital = allHospitalsData[hospitalId];
-
-            if (!hospital) {
-                detailView.innerHTML = '<div class="text-center text-gray-500 py-12">선택된 병원 정보가 없습니다.</div>';
-                return;
-            }
-
-            // 탭 활성화 상태 업데이트
-            document.querySelectorAll('#nav-tabs button').forEach(button => {
-                if (button.dataset.id === hospitalId) {
-                    button.classList.add('tab-active');
-                } else {
-                    button.classList.remove('tab-active');
-                }
-            });
-
-            const available = hospital.available_er_beds || 0;
-            const total = hospital.total_er_beds || 0;
-            const occupied = hospital.occupied_er_beds || 0;
-            const specialists = hospital.specialists || [];
-            
-            // 가용 병상 비율 계산 및 색상 결정
-            const utilization = occupied / total;
-            let statusColor = 'bg-green-500'; 
-            if (utilization >= 0.8) {
-                statusColor = 'bg-red-500'; 
-            } else if (utilization >= 0.5) {
-                statusColor = 'bg-yellow-500'; 
-            }
-            
-            const introSentence = HOSPITAL_INTRODUCTIONS[hospitalId] || '환자 중심의 의료 서비스를 제공합니다.';
-
-            const cardHtml = `
-                <div class="hospital-card bg-white p-6 rounded-xl shadow-md border-t-8 ${statusColor.replace('bg-', 'border-')} flex flex-col justify-between h-full">
-                    <div>
-                        <h2 class="text-3xl font-bold text-gray-800 mb-2">${hospital.name}</h2>
-                        <p class="text-sm text-gray-500 mb-4">ID: ${hospitalId}</p>
-
-                        <!-- 센스있는 소개 문구 -->
-                        <div class="p-3 mb-4 bg-blue-50 rounded-lg border-l-4 border-blue-500">
-                            <p class="text-blue-800 font-medium">${introSentence}</p>
-                        </div>
-                        
-                        <!-- 병상 현황 바 -->
-                        <div class="mb-4">
-                            <p class="text-sm font-medium text-gray-700">병상 가용 현황:</p>
-                            <div class="w-full bg-gray-200 rounded-full h-3.5">
-                                <div class="h-3.5 rounded-full ${statusColor}" style="width: ${utilization * 100}%"></div>
-                            </div>
-                            <p class="text-2xl font-extrabold mt-2 text-gray-900">
-                                <span class="text-green-600">${available}</span> / <span class="text-gray-400">${total}</span> (사용 중: ${occupied})
-                            </p>
-                        </div>
-
-                        <!-- 특화 진료과 목록 -->
-                        <div class="mb-4">
-                            <p class="text-sm font-medium text-gray-700 mb-1">특화 진료과:</p>
-                            <div class="flex flex-wrap gap-2">
-                                ${specialists.map(s => `<span class="px-3 py-1 text-sm font-semibold rounded-full bg-indigo-100 text-indigo-800">${s}</span>`).join('')}
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- 상태 업데이트 버튼 -->
-                    <div class="flex space-x-3 mt-4 pt-4 border-t border-gray-100">
-                        <button onclick="updateBedStatus('${hospitalId}', -1)" 
-                                class="flex-1 py-3 px-4 text-base font-bold rounded-lg text-white ${available > 0 ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-gray-400 cursor-not-allowed'}" 
-                                ${available <= 0 ? 'disabled' : ''}>
-                            환자 입원 (-1)
-                        </button>
-                        <button onclick="updateBedStatus('${hospitalId}', 1)" 
-                                class="flex-1 py-3 px-4 text-base font-bold rounded-lg text-indigo-600 border border-indigo-600 hover:bg-indigo-50"
-                                ${occupied <= 0 ? 'disabled' : ''}>
-                            환자 퇴원 (+1)
-                        </button>
+            <!-- 대화 내용 -->
+            <div class="space-y-3">
+                <!-- 사용자 질문 -->
+                <div class="flex items-start space-x-3">
+                    ${userIcon}
+                    <div class="bg-gray-100 p-3 rounded-lg rounded-tl-none w-full">
+                        <p class="text-gray-800">${log.user}</p>
                     </div>
                 </div>
-            `;
-            detailView.innerHTML = cardHtml;
-        };
-
-
-        // --- 4. 실시간 데이터 리스너 설정 ---
-        if (db) {
-            const hospitalsRef = ref(db, 'hospitals');
-
-            onValue(hospitalsRef, (snapshot) => {
-                loadingElement.classList.add('hidden'); 
-
-                if (!snapshot.exists()) {
-                    detailView.innerHTML = '<div class="text-center text-gray-500 py-12">데이터베이스에 병원 정보가 없습니다.</div>';
-                    navTabs.innerHTML = '';
-                    return;
-                }
-
-                const hospitals = snapshot.val();
-                allHospitalsData = hospitals; // 전체 데이터 업데이트
                 
-                // 탭 네비게이션 재구성
-                navTabs.innerHTML = '';
-                const hospitalIds = Object.keys(hospitals);
+                <!-- Gemini 응답 -->
+                <div class="flex items-start space-x-3">
+                    ${geminiIcon}
+                    <div class="bg-indigo-50 p-3 rounded-lg rounded-bl-none w-full">
+                        <p class="text-indigo-900">${log.gemini}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+/**
+ * 메인 앱 실행 함수
+ */
+async function main() {
+    try {
+        // Firebase 앱 초기화
+        statusEl.textContent = 'Firebase 초기화 중...';
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getDatabase(app);
+
+        // 익명으로 로그인 (DB 읽기 권한을 위해)
+        statusEl.textContent = '인증 중...';
+        await signInAnonymously(auth);
+        statusEl.textContent = '인증 성공. 데이터 수신 대기 중...';
+
+        // 'logs' 경로의 데이터를 참조합니다.
+        const logsRef = ref(db, 'logs');
+
+        // onValue는 데이터가 변경될 때마다 (실시간으로) 호출됩니다.
+        onValue(logsRef, (snapshot) => {
+            const data = snapshot.val();
+            
+            if (data) {
+                // 데이터를 배열로 변환하고 최신순으로 정렬 (reverse)
+                const logs = Object.values(data).reverse();
                 
-                hospitalIds.forEach(hospitalId => {
-                    const hospital = hospitals[hospitalId];
-                    const button = document.createElement('button');
-                    button.textContent = hospital.name;
-                    button.dataset.id = hospitalId;
-                    button.className = 'flex-shrink-0 px-4 py-2 text-sm font-semibold rounded-lg text-gray-700 bg-gray-100 hover:bg-blue-50 transition duration-150';
-                    button.onclick = () => displayHospitalDetail(hospitalId);
-                    navTabs.appendChild(button);
+                // 컨테이너 비우기
+                logContainer.innerHTML = '';
+                
+                // 각 로그 항목을 HTML로 변환하여 삽입
+                logs.forEach(log => {
+                    logContainer.innerHTML += renderLogEntry(log);
                 });
                 
-                // 데이터 업데이트 후, 이전에 선택된 병원이 있다면 그 병원의 상세 정보를 업데이트
-                // 아니면 목록의 첫 번째 병원을 자동으로 선택
-                const idToDisplay = currentHospitalId && hospitalIds.includes(currentHospitalId) 
-                                    ? currentHospitalId 
-                                    : hospitalIds[0];
-                
-                if (idToDisplay) {
-                    displayHospitalDetail(idToDisplay);
-                } else {
-                    detailView.innerHTML = '<div class="text-center text-gray-500 py-12">표시할 병원이 없습니다.</div>';
-                }
+                statusEl.textContent = `연결 성공 (실시간 업데이트 중) - 총 ${logs.length}개 로그`;
+            } else {
+                logContainer.innerHTML = '<div class="p-8 text-center text-gray-500">아직 기록된 로그가 없습니다.</div>';
+                statusEl.textContent = '연결 성공 (데이터 없음)';
+            }
+        }, (error) => {
+            // 읽기 오류 처리
+            console.error("Firebase 데이터 읽기 오류:", error);
+            statusEl.textContent = `데이터 읽기 오류: ${error.message}`;
+            logContainer.innerHTML = `<div class="p-8 text-center text-red-500">데이터를 불러오는 데 실패했습니다. Firebase DB 규칙(Rules)을 확인하세요.</div>`;
+        });
 
-            }, (error) => {
-                loadingElement.classList.add('hidden');
-                detailView.innerHTML = `<div class="text-center text-red-600 col-span-full py-12">데이터 읽기 실패: ${error.message}</div>`;
-                console.error("RTDB Read Error:", error);
-            });
+    } catch (error) {
+        console.error("Firebase 초기화 또는 인증 오류:", error);
+        statusEl.textContent = `Firebase 연결 오류: ${error.message}`;
+        if (error.message.includes("API key")) {
+            logContainer.innerHTML = `<div class="p-8 text-center text-red-500 font-bold">Firebase 구성(firebaseConfig)이 올바르지 않습니다. 스크립트에서 1번 항목을 확인해주세요.</div>`;
         }
+    }
+}
+
+// 앱 실행
+main();
